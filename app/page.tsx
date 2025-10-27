@@ -93,6 +93,7 @@ export default function Home() {
   // Game physics constants
   const GRAVITY = 0.6;
   const JUMP_FORCE = 12; // Positive to jump UP (increase Y which is measured from bottom)
+  const MAX_FALL_SPEED = -12; // Terminal velocity for falling
   const GROUND_Y = 80; // Height of ground from bottom
   const PLAYER_SIZE = 40;
   const OBSTACLE_WIDTH = 40;
@@ -103,9 +104,11 @@ export default function Home() {
     if (gameState === "playing" && playerY <= GROUND_Y + 5) {
       setVelocity(JUMP_FORCE);
       setIsJumping(true);
-      setTimeout(() => setIsJumping(false), 300);
+      // Calculate jump animation duration based on physics
+      const jumpDuration = Math.floor((2 * JUMP_FORCE / GRAVITY) * 16.67); // Approximate time to reach peak
+      setTimeout(() => setIsJumping(false), jumpDuration);
     }
-  }, [gameState, playerY, JUMP_FORCE, GROUND_Y]);
+  }, [gameState, playerY, JUMP_FORCE, GROUND_Y, GRAVITY]);
 
   // Start game
   const startGame = useCallback(() => {
@@ -175,10 +178,11 @@ export default function Home() {
 
   // Check collision
   const checkCollision = (pY: number, obs: Obstacle[]) => {
-    const playerBottom = pY;
-    const playerTop = pY + PLAYER_SIZE;
-    const playerLeft = 100;
-    const playerRight = 100 + PLAYER_SIZE;
+    // Player hitbox (slightly smaller than visual size for better gameplay feel)
+    const playerLeft = 100 + 10;  // Offset hitbox inward
+    const playerRight = 100 + PLAYER_SIZE - 10;
+    const playerBottom = pY;  // Bottom edge of player
+    const playerTop = pY + PLAYER_SIZE;  // Top edge of player
     
     for (const obstacle of obs) {
       const obstacleLeft = obstacle.x;
@@ -186,7 +190,7 @@ export default function Home() {
       const obstacleBottom = GROUND_Y;
       const obstacleTop = GROUND_Y + obstacle.height;
       
-      // Check if player overlaps with obstacle
+      // Perform collision check with adjusted hitbox
       if (
         playerRight > obstacleLeft &&
         playerLeft < obstacleRight &&
@@ -211,8 +215,8 @@ export default function Home() {
           newY = GROUND_Y;
           setVelocity(0);
         } else {
-          // Apply gravity (makes velocity more positive, pulling down)
-          setVelocity(v => v - GRAVITY);
+          // Apply gravity with terminal velocity limit
+          setVelocity(v => Math.max(MAX_FALL_SPEED, v - GRAVITY));
         }
         return newY;
       });
@@ -264,7 +268,7 @@ export default function Home() {
         cancelAnimationFrame(gameLoopRef.current);
       }
     };
-  }, [gameState, playerY, velocity, gameOver]);
+  }, [gameState, playerY, velocity, gameOver, MAX_FALL_SPEED]);
 
   // Keyboard controls
   useEffect(() => {
