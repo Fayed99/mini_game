@@ -341,7 +341,10 @@ export default function Home() {
         {/* Player */}
         <div
           className={`${styles.player} ${isJumping ? styles.jumping : ""}`}
-          style={{ bottom: `${playerY}px` }}
+          style={{ 
+            bottom: `${playerY}px`,
+            backgroundImage: `url('/assets/Pixel Bird Sprite Pack/Complete/Running/Running0.png')`
+          }}
           role="img"
           aria-label="Running character"
         />

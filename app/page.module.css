@@ -149,12 +149,14 @@
 .player {
   position: absolute;
   left: 100px;
-  width: 60px;
-  height: 60px;
+  width: 120px;  /* Increased size */
+  height: 120px; /* Increased size */
   background: url('/assets/Pixel Bird Sprite Pack/Complete/Running/Running0.png') no-repeat center center;
-  background-size: contain;
+  background-size: 100% 100%;  /* Changed to exact sizing */
   transform-origin: center;
   image-rendering: pixelated;
+  z-index: 10; /* Ensure player is above other elements */
+  background-color: transparent; /* Ensure background is transparent */
 }
 
 .player.jumping {
