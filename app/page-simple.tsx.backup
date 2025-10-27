@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { useAccount } from "wagmi";
-import { usePlayerStats, useTopPlayers, useSubmitScore } from "./hooks/useContract";
 import styles from "./game.module.css";
 
 type GameState = "ready" | "playing" | "gameover" | "leaderboard";
@@ -23,11 +22,6 @@ export default function Home() {
   const { isFrameReady, setFrameReady, context } = useMiniKit();
   const { address, isConnected } = useAccount();
   
-  // Web3 hooks
-  const { data: playerStats, refetch: refetchStats } = usePlayerStats(address);
-  const { data: topPlayers } = useTopPlayers(10);
-  const { submitScore: submitScoreOnchain, isPending, isSuccess } = useSubmitScore();
-  
   // Game state
   const [gameState, setGameState] = useState<GameState>("ready");
   const [score, setScore] = useState(0);
@@ -38,10 +32,9 @@ export default function Home() {
   const [energy, setEnergy] = useState(3);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isJumping, setIsJumping] = useState(false);
-  const [submittingScore, setSubmittingScore] = useState(false);
   
   // Game refs
-  const gameLoopRef = useRef<number | undefined>(undefined);
+  const gameLoopRef = useRef<number>();
   const obstacleIdRef = useRef(0);
   const gameSpeedRef = useRef(5);
 
@@ -52,48 +45,23 @@ export default function Home() {
     }
   }, [setFrameReady, isFrameReady]);
 
-  // Load player stats from contract or local storage
+  // Load player stats (mock for now - will integrate with contract later)
   useEffect(() => {
-    if (isConnected && address && playerStats) {
-      const [onchainBestScore, , remainingEnergy] = playerStats as [bigint, bigint, bigint, bigint];
-      setBestScore(Number(onchainBestScore));
-      setEnergy(Number(remainingEnergy));
-    } else if (address) {
-      // Fallback to localStorage if contract not deployed
+    if (isConnected && address) {
+      // TODO: Load from smart contract
       const saved = localStorage.getItem(`baserunner_${address}`);
       if (saved) {
         const data = JSON.parse(saved);
         setBestScore(data.bestScore || 0);
-        setEnergy(data.energy !== undefined ? data.energy : 3);
+        setEnergy(data.energy || 3);
       }
     }
-  }, [isConnected, address, playerStats]);
-
-  // Update leaderboard from contract
-  useEffect(() => {
-    if (topPlayers && Array.isArray(topPlayers)) {
-      const formatted = (topPlayers as Array<{player: string, score: bigint, timestamp: bigint}>).map((entry) => ({
-        player: entry.player,
-        score: Number(entry.score),
-        timestamp: Number(entry.timestamp)
-      }));
-      setLeaderboard(formatted);
-    }
-  }, [topPlayers]);
-
-  // Handle successful score submission
-  useEffect(() => {
-    if (isSuccess && submittingScore) {
-      setSubmittingScore(false);
-      refetchStats();
-      alert("Score submitted onchain! 🎉");
-    }
-  }, [isSuccess, submittingScore, refetchStats]);
+  }, [isConnected, address]);
 
   // Game physics constants
   const GRAVITY = 0.6;
   const JUMP_FORCE = -12;
-  const GROUND_Y = 80; // Height of ground from bottom
+  const GROUND_Y = 300;
   const PLAYER_SIZE = 40;
   const OBSTACLE_WIDTH = 40;
   const OBSTACLE_GAP = 300;
@@ -110,7 +78,7 @@ export default function Home() {
   // Start game
   const startGame = useCallback(() => {
     if (energy <= 0) {
-      alert("No energy left! Wait for refill (24 hours) or use tokens to continue.");
+      alert("No energy left! Wait for refill or use tokens to continue.");
       return;
     }
     
@@ -122,17 +90,7 @@ export default function Home() {
     obstacleIdRef.current = 0;
     gameSpeedRef.current = 5;
     setEnergy(prev => Math.max(0, prev - 1));
-    
-    // Save energy to localStorage
-    if (address) {
-      const saved = JSON.parse(localStorage.getItem(`baserunner_${address}`) || "{}");
-      localStorage.setItem(`baserunner_${address}`, JSON.stringify({
-        ...saved,
-        energy: Math.max(0, energy - 1),
-        lastPlay: Date.now()
-      }));
-    }
-  }, [energy, GROUND_Y, address]);
+  }, [energy, GROUND_Y]);
 
   // Game over
   const gameOver = useCallback(() => {
@@ -142,55 +100,32 @@ export default function Home() {
     }
     
     // Update best score
-    const isNewBest = score > bestScore;
-    if (isNewBest) {
+    if (score > bestScore) {
       setBestScore(score);
+      if (isConnected && address) {
+        localStorage.setItem(`baserunner_${address}`, JSON.stringify({
+          bestScore: score,
+          energy
+        }));
+        // TODO: Submit to smart contract
+      }
     }
-    
-    // Save to localStorage
-    if (address) {
-      localStorage.setItem(`baserunner_${address}`, JSON.stringify({
-        bestScore: isNewBest ? score : bestScore,
-        energy,
-        lastPlay: Date.now()
-      }));
-    }
-    
-    // Submit to contract if connected and new best score
-    if (isConnected && address && isNewBest && process.env.NEXT_PUBLIC_CONTRACT_ADDRESS) {
-      setTimeout(() => {
-        if (confirm(`New high score: ${score}! Submit to onchain leaderboard?`)) {
-          setSubmittingScore(true);
-          try {
-            submitScoreOnchain(score);
-          } catch (error) {
-            console.error("Error submitting score:", error);
-            alert("Failed to submit score. Try again later.");
-            setSubmittingScore(false);
-          }
-        }
-      }, 500);
-    }
-  }, [score, bestScore, isConnected, address, energy, submitScoreOnchain]);
+  }, [score, bestScore, isConnected, address, energy]);
 
   // Check collision
   const checkCollision = (pY: number, obs: Obstacle[]) => {
-    const playerBottom = pY;
-    const playerTop = pY - PLAYER_SIZE;
-    const playerLeft = 100;
+    const playerBottom = pY + PLAYER_SIZE;
     const playerRight = 100 + PLAYER_SIZE;
     
     for (const obstacle of obs) {
       const obstacleLeft = obstacle.x;
       const obstacleRight = obstacle.x + OBSTACLE_WIDTH;
-      const obstacleTop = GROUND_Y + obstacle.height;
+      const obstacleTop = GROUND_Y + PLAYER_SIZE - obstacle.height;
       
-      // Check if player overlaps with obstacle
       if (
+        100 < obstacleRight &&
         playerRight > obstacleLeft &&
-        playerLeft < obstacleRight &&
-        playerBottom < obstacleTop &&
-        playerTop < obstacleTop
+        playerBottom > obstacleTop
       ) {
         return true;
       }
@@ -295,21 +230,12 @@ export default function Home() {
 
   const showLeaderboard = () => {
     setGameState("leaderboard");
-  };
-
-  const shareScore = () => {
-    const text = `I scored ${score} in Base Runner! 🏃‍♂️ Can you beat me?\n\nPlay now: ${process.env.NEXT_PUBLIC_URL || window.location.origin}`;
-    
-    // Try to open Farcaster share
-    const farcasterUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`;
-    
-    // Open in new window or copy to clipboard as fallback
-    if (typeof window !== 'undefined') {
-      window.open(farcasterUrl, '_blank');
-    } else {
-      navigator.clipboard.writeText(text);
-      alert("Score copied to clipboard! 📋");
-    }
+    // TODO: Fetch from smart contract
+    setLeaderboard([
+      { player: "0x1234...5678", score: 127, timestamp: Date.now() },
+      { player: "0xabcd...efgh", score: 98, timestamp: Date.now() },
+      { player: "0x9876...5432", score: 85, timestamp: Date.now() },
+    ]);
   };
 
   return (
@@ -347,7 +273,7 @@ export default function Home() {
             style={{
               left: `${obstacle.x}px`,
               height: `${obstacle.height}px`,
-              bottom: `${GROUND_Y}px`
+              bottom: `${GROUND_Y + PLAYER_SIZE}px`
             }}
           />
         ))}
@@ -357,10 +283,10 @@ export default function Home() {
           <div className={styles.overlay}>
             <h1 className={styles.gameTitle}>🏃 BASE RUNNER</h1>
             <p className={styles.instructions}>Tap or press SPACE to jump!</p>
-            <button className={styles.startButton} onClick={(e) => { e.stopPropagation(); startGame(); }}>
+            <button className={styles.startButton} onClick={startGame}>
               START GAME
             </button>
-            <button className={styles.leaderboardButton} onClick={(e) => { e.stopPropagation(); showLeaderboard(); }}>
+            <button className={styles.leaderboardButton} onClick={showLeaderboard}>
               🏆 LEADERBOARD
             </button>
           </div>
@@ -373,17 +299,18 @@ export default function Home() {
               <p>Score: <strong>{score}</strong></p>
               {score > bestScore && <p className={styles.newRecord}>🎉 NEW RECORD!</p>}
               <p>Best: {bestScore}</p>
-              {submittingScore && <p>⏳ Submitting to blockchain...</p>}
-              {isPending && <p>⏳ Waiting for confirmation...</p>}
             </div>
             <div className={styles.gameOverButtons}>
-              <button className={styles.retryButton} onClick={(e) => { e.stopPropagation(); startGame(); }}>
+              <button className={styles.retryButton} onClick={startGame}>
                 RETRY ({energy} ⚡ left)
               </button>
-              <button className={styles.shareButton} onClick={(e) => { e.stopPropagation(); shareScore(); }}>
+              <button className={styles.shareButton} onClick={() => {
+                // TODO: Implement Farcaster share
+                alert(`I scored ${score} in Base Runner! Can you beat me? 🏃‍♂️`);
+              }}>
                 📢 SHARE
               </button>
-              <button className={styles.leaderboardButton} onClick={(e) => { e.stopPropagation(); showLeaderboard(); }}>
+              <button className={styles.leaderboardButton} onClick={showLeaderboard}>
                 🏆 LEADERBOARD
               </button>
             </div>
@@ -394,25 +321,15 @@ export default function Home() {
           <div className={styles.overlay}>
             <h2 className={styles.leaderboardTitle}>🏆 TOP PLAYERS</h2>
             <div className={styles.leaderboardList}>
-              {leaderboard.length > 0 ? (
-                leaderboard.map((entry, index) => (
-                  <div key={index} className={styles.leaderboardEntry}>
-                    <span className={styles.rank}>#{index + 1}</span>
-                    <span className={styles.playerAddress}>
-                      {entry.player.slice(0, 6)}...{entry.player.slice(-4)}
-                    </span>
-                    <span className={styles.playerScore}>{entry.score}</span>
-                  </div>
-                ))
-              ) : (
-                <p style={{ textAlign: 'center', color: '#aaa' }}>
-                  {process.env.NEXT_PUBLIC_CONTRACT_ADDRESS 
-                    ? "No scores yet. Be the first!" 
-                    : "Deploy contract to enable leaderboard"}
-                </p>
-              )}
+              {leaderboard.map((entry, index) => (
+                <div key={index} className={styles.leaderboardEntry}>
+                  <span className={styles.rank}>#{index + 1}</span>
+                  <span className={styles.playerAddress}>{entry.player}</span>
+                  <span className={styles.playerScore}>{entry.score}</span>
+                </div>
+              ))}
             </div>
-            <button className={styles.backButton} onClick={(e) => { e.stopPropagation(); setGameState("ready"); }}>
+            <button className={styles.backButton} onClick={() => setGameState("ready")}>
               BACK
             </button>
           </div>
