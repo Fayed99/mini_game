@@ -149,38 +149,19 @@
 .player {
   position: absolute;
   left: 100px;
-  width: 120px;  /* Increased size */
-  height: 120px; /* Increased size */
-  background: url('/assets/Pixel Bird Sprite Pack/Complete/Running/Running0.png') no-repeat center center;
-  background-size: 100% 100%;  /* Changed to exact sizing */
+  width: 120px;
+  height: 120px;
+  background: url('/assets/Pixel Bird Sprite Pack/Complete/Flying/Animation_Flying.gif') no-repeat center center;
+  background-size: contain;
   transform-origin: center;
   image-rendering: pixelated;
-  z-index: 10; /* Ensure player is above other elements */
-  background-color: transparent; /* Ensure background is transparent */
+  z-index: 10;
+  background-color: transparent;
+  transform: scaleX(-1); /* Flip horizontally to face right */
 }
 
 .player.jumping {
-  background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Jumping/Jumping0.png');
-  animation: jumpSprite 0.5s steps(3) infinite;
-}
-
-@keyframes jumpSprite {
-  0% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Jumping/Jumping0.png'); }
-  33% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Jumping/Jumping1.png'); }
-  66% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Jumping/Jumping2.png'); }
-  100% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Jumping/Jumping2.png'); }
-}
-
-@keyframes runSprite {
-  0% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Running/Running0.png'); }
-  25% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Running/Running1.png'); }
-  50% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Running/Running2.png'); }
-  75% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Running/Running3.png'); }
-  100% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Running/Running0.png'); }
-}
-
-.player:not(.jumping) {
-  animation: runSprite 0.4s steps(4) infinite;
+  background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Jumping/Animation_Jumping.gif');
 }
 
 .obstacle {

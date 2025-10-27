@@ -11,6 +11,7 @@ interface Obstacle {
   id: number;
   x: number;
   height: number;
+  scored?: boolean;
 }
 
 interface LeaderboardEntry {
@@ -104,11 +105,10 @@ export default function Home() {
     if (gameState === "playing" && playerY <= GROUND_Y + 5) {
       setVelocity(JUMP_FORCE);
       setIsJumping(true);
-      // Calculate jump animation duration based on physics
-      const jumpDuration = Math.floor((2 * JUMP_FORCE / GRAVITY) * 16.67); // Approximate time to reach peak
-      setTimeout(() => setIsJumping(false), jumpDuration);
+      // Use a longer duration to match the GIF animation
+      setTimeout(() => setIsJumping(false), 600); // 600ms for full GIF animation
     }
-  }, [gameState, playerY, JUMP_FORCE, GROUND_Y, GRAVITY]);
+  }, [gameState, playerY, JUMP_FORCE, GROUND_Y]);
 
   // Start game
   const startGame = useCallback(() => {
@@ -232,13 +232,17 @@ export default function Home() {
           newObstacles.push({
             id: obstacleIdRef.current++,
             x: 800,
-            height
+            height,
+            scored: false
           });
         }
 
-        // Check for passed obstacles (score)
+        // Check for passed obstacles (score) with a wider detection zone
         newObstacles.forEach(obs => {
-          if (obs.x + OBSTACLE_WIDTH < 100 && obs.x + OBSTACLE_WIDTH > 100 - gameSpeedRef.current) {
+          // Score when obstacle passes the player's position (100px)
+          // Added a "scored" property to prevent multiple score increments for the same obstacle
+          if (!obs.scored && obs.x + OBSTACLE_WIDTH < 100) {
+            obs.scored = true;
             setScore(s => {
               const newScore = s + 1;
               // Increase speed every 5 points
