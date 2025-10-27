@@ -92,7 +92,7 @@ export default function Home() {
 
   // Game physics constants
   const GRAVITY = 0.6;
-  const JUMP_FORCE = -12;
+  const JUMP_FORCE = 12; // Positive to jump UP (increase Y which is measured from bottom)
   const GROUND_Y = 80; // Height of ground from bottom
   const PLAYER_SIZE = 40;
   const OBSTACLE_WIDTH = 40;
@@ -100,7 +100,7 @@ export default function Home() {
 
   // Jump function
   const jump = useCallback(() => {
-    if (gameState === "playing" && playerY >= GROUND_Y - 5) {
+    if (gameState === "playing" && playerY <= GROUND_Y + 5) {
       setVelocity(JUMP_FORCE);
       setIsJumping(true);
       setTimeout(() => setIsJumping(false), 300);
@@ -176,13 +176,14 @@ export default function Home() {
   // Check collision
   const checkCollision = (pY: number, obs: Obstacle[]) => {
     const playerBottom = pY;
-    const playerTop = pY - PLAYER_SIZE;
+    const playerTop = pY + PLAYER_SIZE;
     const playerLeft = 100;
     const playerRight = 100 + PLAYER_SIZE;
     
     for (const obstacle of obs) {
       const obstacleLeft = obstacle.x;
       const obstacleRight = obstacle.x + OBSTACLE_WIDTH;
+      const obstacleBottom = GROUND_Y;
       const obstacleTop = GROUND_Y + obstacle.height;
       
       // Check if player overlaps with obstacle
@@ -190,7 +191,7 @@ export default function Home() {
         playerRight > obstacleLeft &&
         playerLeft < obstacleRight &&
         playerBottom < obstacleTop &&
-        playerTop < obstacleTop
+        playerTop > obstacleBottom
       ) {
         return true;
       }
@@ -205,11 +206,13 @@ export default function Home() {
     const gameLoop = () => {
       setPlayerY(prev => {
         let newY = prev + velocity;
-        if (newY >= GROUND_Y) {
+        // If falling below ground, snap to ground
+        if (newY <= GROUND_Y) {
           newY = GROUND_Y;
           setVelocity(0);
         } else {
-          setVelocity(v => v + GRAVITY);
+          // Apply gravity (makes velocity more positive, pulling down)
+          setVelocity(v => v - GRAVITY);
         }
         return newY;
       });
