@@ -149,38 +149,44 @@
 .player {
   position: absolute;
   left: 100px;
-  width: 40px;
-  height: 40px;
-  background: url('/player.svg') no-repeat center center;
+  width: 60px;
+  height: 60px;
+  background: url('/assets/Pixel Bird Sprite Pack/Complete/Running/Running0.png') no-repeat center center;
   background-size: contain;
   transform-origin: center;
-  transform: scaleX(1);
-  transition: transform 0.1s ease-out;
+  image-rendering: pixelated;
 }
 
 .player.jumping {
-  animation: jumpAnimation 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Jumping/Jumping0.png');
+  animation: jumpSprite 0.5s steps(3) infinite;
 }
 
-@keyframes jumpAnimation {
-  0%, 100% { transform: scaleY(1) scaleX(1); }
-  50% { transform: scaleY(0.9) scaleX(1.1); }
+@keyframes jumpSprite {
+  0% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Jumping/Jumping0.png'); }
+  33% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Jumping/Jumping1.png'); }
+  66% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Jumping/Jumping2.png'); }
+  100% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Jumping/Jumping2.png'); }
 }
 
-@keyframes runAnimation {
-  0%, 100% { transform: scaleY(1) translateY(0); }
-  50% { transform: scaleY(0.95) translateY(2px); }
+@keyframes runSprite {
+  0% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Running/Running0.png'); }
+  25% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Running/Running1.png'); }
+  50% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Running/Running2.png'); }
+  75% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Running/Running3.png'); }
+  100% { background-image: url('/assets/Pixel Bird Sprite Pack/Complete/Running/Running0.png'); }
 }
 
 .player:not(.jumping) {
-  animation: runAnimation 0.3s infinite;
+  animation: runSprite 0.4s steps(4) infinite;
 }
 
 .obstacle {
   position: absolute;
   width: 40px;
-  background: url('/obstacle.svg') no-repeat bottom center;
-  background-size: 100% 100%;
+  background: #2a4365;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+  border-radius: 4px;
 }
 
 .overlay {
