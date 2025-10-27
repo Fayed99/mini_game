@@ -342,9 +342,9 @@ export default function Home() {
         <div
           className={`${styles.player} ${isJumping ? styles.jumping : ""}`}
           style={{ bottom: `${playerY}px` }}
-        >
-          🏃
-        </div>
+          role="img"
+          aria-label="Running character"
+        />
 
         {/* Obstacles */}
         {obstacles.map(obstacle => (
@@ -356,6 +356,8 @@ export default function Home() {
               height: `${obstacle.height}px`,
               bottom: `${GROUND_Y}px`
             }}
+            role="img"
+            aria-label="Obstacle"
           />
         ))}
 
